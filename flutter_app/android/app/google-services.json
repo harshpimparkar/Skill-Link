@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "628924564823",
+    "project_id": "skill-link-5fdf3",
+    "storage_bucket": "skill-link-5fdf3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:628924564823:android:cca8bfc7e45bbe61eb6a12",
+        "android_client_info": {
+          "package_name": "com.example.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKtTyTL6TOMvc7ZXoPYIZnvNinlxExpLg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:628924564823:android:18588a0106b5754eeb6a12",
+        "android_client_info": {
+          "package_name": "com.harsh.skill_link"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKtTyTL6TOMvc7ZXoPYIZnvNinlxExpLg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
