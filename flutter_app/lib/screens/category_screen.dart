@@ -31,9 +31,14 @@ class CategoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Categories'),
-        backgroundColor: Colors.blue.shade900,
-      ),
+          title: const Text('Categories'),
+          backgroundColor: Colors.blue.shade900,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/home');
+            },
+          )),
       body: ListView.builder(
         padding: const EdgeInsets.all(16.0),
         itemCount: categories.length,

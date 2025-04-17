@@ -1,90 +1,121 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// services/auth_services.dart
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'api_service.dart';
+import 'dart:convert';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ApiService apiService;
+  final SharedPreferences sharedPrefs;
 
-  Stream<User?> get user {
-    return _auth.authStateChanges().handleError((error) {
-      debugPrint('AuthStateChanges error: $error');
-      return null;
-    });
-  }
+  AuthService({
+    required this.apiService,
+    required this.sharedPrefs,
+  });
 
-  User? get currentUser => _auth.currentUser;
+  // Check if user is authenticated
+  Future<bool> isAuthenticated() async {
+    final token = sharedPrefs.getString('token');
+    debugPrint('Token found: ${token != null}');
 
-  Future<void> clearAuthCache() async {
-    await _auth.signOut();
-    if (kIsWeb) {
-      await _auth.setPersistence(Persistence.NONE);
+    if (token == null) return false;
+
+    try {
+      final response = await apiService.get('auth/me');
+      debugPrint('Auth check response code: ${response.statusCode}');
+      debugPrint('Auth check response: ${response.body}');
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Auth check error: $e');
+      return false;
     }
   }
 
-  Future<User?> signInWithEmail(String email, String password) async {
+  // Login with email and password
+  Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      final result = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-      debugPrint('Signed in user: ${result.user?.uid}');
-      return result.user;
-    } on FirebaseAuthException catch (e) {
-      debugPrint('SignIn error: ${e.code}');
-      throw handleAuthException(e);
-    }
-  }
-
-  Future<User?> registerWithEmail(
-      String email, String password, String username) async {
-    try {
-      final result = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-
-      await _firestore.collection('users').doc(result.user?.uid).set({
+      debugPrint('Attempting login for: $email');
+      final response = await apiService.post('auth/login', {
         'email': email.trim(),
-        'username': username.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
+        'password': password,
       });
 
-      return result.user;
-    } on FirebaseAuthException catch (e) {
-      throw handleAuthException(e);
+      debugPrint('Login response code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        await _saveAuthData(data);
+        debugPrint('Login successful, token saved');
+        return {'success': true, 'data': data};
+      } else {
+        final error = json.decode(response.body)['error'] ?? 'Login failed';
+        debugPrint('Login failed: $error');
+        return {'success': false, 'error': error};
+      }
+    } catch (e) {
+      debugPrint('Login exception: $e');
+      return {'success': false, 'error': 'Connection error: $e'};
     }
   }
 
-  // Add method to get username
-  Future<String?> getUsername(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (!doc.exists) {
-      return null; // Or return a default value
+  // Register new user
+  Future<Map<String, dynamic>> register(
+      String email, String password, String name) async {
+    try {
+      debugPrint('Attempting registration for: $email');
+      final response = await apiService.post('auth/register', {
+        'email': email.trim(),
+        'password': password,
+        'name': name,
+      });
+
+      debugPrint('Register response code: ${response.statusCode}');
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        await _saveAuthData(data);
+        debugPrint('Registration successful, token saved');
+        return {'success': true, 'data': data};
+      } else {
+        final responseBody = json.decode(response.body);
+        final error = responseBody['error'] ?? 'Registration failed';
+        debugPrint('Registration failed: $error');
+        return {'success': false, 'error': error};
+      }
+    } catch (e) {
+      debugPrint('Registration exception: $e');
+      return {'success': false, 'error': 'Connection error: $e'};
     }
-    return doc.data()?['username'] as String?;
   }
 
-  // Sign out
-  Future<void> signOut() async {
-    await _auth.signOut();
+  // Logout
+  Future<void> logout() async {
+    debugPrint('Logging out');
+    await sharedPrefs.remove('token');
+    await sharedPrefs.remove('userId');
+    debugPrint('Logout complete - token and userId removed');
   }
 
-  // Error handler (now public)
-  String handleAuthException(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-email':
-        return 'Invalid email format.';
-      case 'user-not-found':
-        return 'No user found with this email.';
-      case 'wrong-password':
-        return 'Incorrect password.';
-      case 'email-already-in-use':
-        return 'Email already in use.';
-      case 'weak-password':
-        return 'Password must be at least 6 characters.';
-      default:
-        return 'An error occurred.';
+  // Get current user data
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    try {
+      final response = await apiService.get('auth/me');
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      }
+      debugPrint('Get current user failed: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      debugPrint('Get current user exception: $e');
+      return null;
     }
+  }
+
+  // Helper to save auth data
+  Future<void> _saveAuthData(Map<String, dynamic> data) async {
+    await sharedPrefs.setString('token', data['token']);
+    await sharedPrefs.setString('userId', data['userId']);
+    debugPrint(
+        'Auth data saved - token: ${data['token'].substring(0, 10)}... userId: ${data['userId']}');
   }
 }

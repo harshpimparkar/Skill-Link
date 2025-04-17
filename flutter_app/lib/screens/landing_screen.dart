@@ -1,244 +1,187 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../services/auth_services.dart';
-// Import the auth screen
 
-class LandingScreen extends StatelessWidget {
+class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
 
   @override
+  _LandingScreenState createState() => _LandingScreenState();
+}
+
+class _LandingScreenState extends State<LandingScreen> {
+  double _gradientShift = 0.0;
+  String? _userEmail;
+  String? _userName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      setState(() {
+        _gradientShift += 0.01;
+      });
+    });
+  }
+
+  Future<void> _loadUserData() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final userData = await authService.getCurrentUser();
+    if (userData != null) {
+      setState(() {
+        _userEmail = userData['email'];
+        _userName = userData['name'];
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
-    final user = authService.currentUser;
-    final username = user?.email?.split('@').first ?? 'Learner';
-    final isLoggedIn = user != null;
+    final isLoggedIn = _userEmail != null;
+    final username = _userName ?? _userEmail?.split('@').first ?? 'Learner';
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 250,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.blue.shade900, Colors.blue.shade700],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: AnimatedContainer(
+              duration: const Duration(seconds: 1),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade900, Colors.blue.shade700],
+                  begin: Alignment(_gradientShift, -1.0),
+                  end: Alignment(-_gradientShift, 1.0),
                 ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+              ),
+            ),
+          ),
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 200,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        child: Icon(
-                          isLoggedIn ? Icons.person : Icons.login,
-                          size: 50,
-                          color: Colors.white,
+                      Positioned(
+                        top: 50,
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          child: Image.asset('assets/logo.png',
+                              width: 80, height: 80),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        isLoggedIn ? 'Welcome, $username!' : 'Welcome!',
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      Positioned(
+                        bottom: 30,
+                        child: Text(
+                          isLoggedIn
+                              ? 'Welcome, $username!'
+                              : 'Welcome! Get Started',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(25.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle(isLoggedIn
-                      ? 'Continue Your Learning Journey'
-                      : 'Your Learning Journey Starts Here'),
-                  const SizedBox(height: 15),
-                  _buildFeatureCard(
-                    icon: Icons.code,
-                    title: 'Cutting-Edge Tech Courses',
-                    description:
-                        'Master in-demand skills with our curated collection of tech courses',
-                    color: Colors.blue.shade100,
-                  ),
-                  const SizedBox(height: 15),
-                  _buildFeatureCard(
-                    icon: Icons.auto_graph,
-                    title: 'Personalized Progress Tracking',
-                    description:
-                        'Watch your skills grow with our intelligent progress dashboard',
-                    color: Colors.green.shade100,
-                  ),
-                  const SizedBox(height: 15),
-                  _buildFeatureCard(
-                    icon: Icons.verified_user,
-                    title: 'Industry-Recognized Certs',
-                    description:
-                        'Earn certificates that boost your professional credibility',
-                    color: Colors.orange.shade100,
-                  ),
-                  const SizedBox(height: 15),
-                  _buildFeatureCard(
-                    icon: Icons.people,
-                    title: 'Vibrant Community',
-                    description:
-                        'Connect with fellow learners and industry experts',
-                    color: Colors.purple.shade100,
-                  ),
-                  const SizedBox(height: 30),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (isLoggedIn) {
-                          Navigator.pushReplacementNamed(context, '/home');
-                        } else {
-                          Navigator.pushNamed(context, '/auth');
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade900,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 40,
-                          vertical: 18,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      _buildFeatureCard(Icons.code, 'Tech Courses',
+                          'Master in-demand skills', Colors.blue.shade100),
+                      _buildFeatureCard(Icons.auto_graph, 'Progress Tracking',
+                          'Watch your skills grow', Colors.green.shade100),
+                      _buildFeatureCard(
+                          Icons.verified_user,
+                          'Certifications',
+                          'Earn industry-recognized certs',
+                          Colors.orange.shade100),
+                      _buildFeatureCard(
+                          Icons.people,
+                          'Community',
+                          'Connect with fellow learners',
+                          Colors.purple.shade100),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pushNamed(
+                            context, isLoggedIn ? '/home' : '/auth'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              const Color.fromARGB(255, 196, 224, 246),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 40, vertical: 18),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          elevation: 5,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 5,
-                        shadowColor: const Color.fromARGB(255, 146, 176, 221)
-                            .withOpacity(0.3),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            isLoggedIn ? 'Browse Categories' : 'Get Started',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Color.fromARGB(255, 255, 255, 255),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isLoggedIn ? 'Browse Courses' : 'Get Started',
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color.fromARGB(255, 17, 66, 141)),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Icon(
-                            isLoggedIn ? Icons.explore : Icons.login,
-                            size: 22,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (!isLoggedIn) const SizedBox(height: 20),
-                  if (!isLoggedIn)
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          if (isLoggedIn) {
-                            // Navigate to home/categories if logged in
-                            Navigator.pushReplacementNamed(context, '/home');
-                          } else {
-                            // Navigate to auth screen if not logged in
-                            Navigator.pushNamed(context, '/auth');
-                          }
-                        },
-                        child: const Text(
-                          'Continue as Guest',
-                          style: TextStyle(
-                            color: Color.fromARGB(255, 69, 83, 143),
-                            decoration: TextDecoration.underline,
-                          ),
+                            const SizedBox(width: 10),
+                            Icon(isLoggedIn ? Icons.explore : Icons.login,
+                                size: 22,
+                                color: Color.fromARGB(255, 17, 66, 141)),
+                          ],
                         ),
                       ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.bold,
-        color: Colors.blue.shade900,
-      ),
-    );
-  }
-
-  Widget _buildFeatureCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required Color color,
-  }) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [color, Colors.white],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: Colors.blue.shade900, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                  ],
-                ),
+  Widget _buildFeatureCard(
+      IconData icon, String title, String description, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: GestureDetector(
+        onTap: () {},
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.5),
+                blurRadius: 10,
+                spreadRadius: 2,
               ),
             ],
+          ),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: color,
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
+            title: Text(title,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            subtitle: Text(description,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade700)),
           ),
         ),
       ),

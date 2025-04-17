@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Screens
 import 'screens/splash_screen.dart';
@@ -16,19 +15,28 @@ import 'screens/auth_screen.dart';
 
 // Services & Utilities
 import 'services/auth_services.dart';
+import 'services/api_service.dart';
 import 'utils/theme.dart';
-import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  // Initialize shared preferences for token storage
+  final sharedPrefs = await SharedPreferences.getInstance();
 
   runApp(
     MultiProvider(
       providers: [
-        Provider<AuthService>(create: (_) => AuthService()),
+        Provider<SharedPreferences>(create: (_) => sharedPrefs),
+        Provider<ApiService>(
+          create: (context) => ApiService(sharedPrefs: sharedPrefs),
+        ),
+        Provider<AuthService>(
+          create: (context) => AuthService(
+            apiService: context.read<ApiService>(),
+            sharedPrefs: sharedPrefs,
+          ),
+        ),
       ],
       child: const SkillLinkApp(),
     ),
@@ -44,7 +52,6 @@ class SkillLinkApp extends StatelessWidget {
       title: 'Skill Link',
       theme: appTheme(),
       debugShowCheckedModeBanner: false,
-      // Remove initialRoute and use home with AuthWrapper instead
       home: const AuthWrapper(),
       routes: {
         '/splash': (context) => const SplashScreen(),
@@ -62,9 +69,7 @@ class SkillLinkApp extends StatelessWidget {
                 settings.arguments as String? ?? 'All Courses';
             return MaterialPageRoute(
               builder: (context) => CourseListScreen(),
-              settings: RouteSettings(
-                arguments: categoryTitle,
-              ),
+              settings: RouteSettings(arguments: categoryTitle),
             );
           case '/video_player':
             return MaterialPageRoute(
@@ -84,10 +89,10 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
+    final authService = Provider.of<AuthService>(context, listen: false);
 
-    return StreamBuilder<User?>(
-      stream: authService.user,
+    return FutureBuilder<bool>(
+      future: authService.isAuthenticated(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -95,32 +100,10 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasError) {
-          return Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Authentication error occurred'),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => authService.clearAuthCache(),
-                    child: const Text('Try Again'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
+        final isAuthenticated = snapshot.data == true;
+        debugPrint('AuthWrapper auth state: $isAuthenticated');
 
-        final user = snapshot.data;
-        debugPrint('AuthWrapper user state: ${user?.uid}');
-
-        if (user == null) {
-          return const LandingScreen();
-        } else {
-          return const HomeScreen();
-        }
+        return isAuthenticated ? const HomeScreen() : const LandingScreen();
       },
     );
   }
